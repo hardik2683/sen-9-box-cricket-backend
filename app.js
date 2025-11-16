@@ -17,31 +17,40 @@ const app = express();
 app.set("trust proxy", 1);
 
 /* ----------------------------------------
-   FIXED CORS (FINAL)
+   FIXED CORS (FINAL + PRODUCTION SAFE)
 ---------------------------------------- */
-const allowedOrigins = (process.env.CORS_ORIGIN || "")
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  "https://sen-9-box-cricket-frontend.vercel.app",
+  "http://localhost:3000"
+];
 
-// If empty allow ALL (development)
-const corsOptions = {
-  origin: allowedOrigins.length ? allowedOrigins : "http://localhost:3000",
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
 
-app.use(cors(corsOptions));
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log("❌ Blocked by CORS:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-/* For preflight requests */
-app.options("*", cors(corsOptions));
+// Preflight headers
+app.options("*", cors());
 
 /* ----------------------------------------
    BODY PARSERS
 ---------------------------------------- */
-app.use(express.json({ limit: "2mb" }));
-app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 /* ----------------------------------------
    STATIC / UPLOADS
@@ -61,7 +70,7 @@ app.use(
 /* ----------------------------------------
    ROUTES
 ---------------------------------------- */
-app.get("/", (_req, res) => res.send("Hello World"));
+app.get("/", (_req, res) => res.send("Backend Running Successfully 🚀"));
 app.get("/healthz", (_req, res) => res.status(200).json({ ok: true }));
 
 app.use("/api/userapi", userRoute);
@@ -82,7 +91,7 @@ app.use((req, res) => {
    GLOBAL ERROR HANDLER
 ---------------------------------------- */
 app.use((err, _req, res, _next) => {
-  console.error("Unhandled error:", err);
+  console.error("🚨 Global Error:", err.message);
   res.status(err.status || 500).json({
     success: false,
     error: err.message || "Internal Server Error",
@@ -92,15 +101,11 @@ app.use((err, _req, res, _next) => {
 /* ----------------------------------------
    START SERVER
 ---------------------------------------- */
-const PORT = Number(process.env.PORT) || 5000;
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  if (allowedOrigins.length) {
-    console.log("CORS allowed origins:", allowedOrigins);
-  } else {
-    console.log("CORS: allowing ALL origins (dev mode)");
-  }
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log("CORS Allowed Origins:", allowedOrigins);
 });
 
 /* ----------------------------------------
